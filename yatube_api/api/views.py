@@ -29,13 +29,13 @@ class FollowViewSet(
     def get_queryset(self):
         return Follow.objects.filter(user=self.request.user)
 
+
 def perform_create(self, serializer):
     user = self.request.user
     following = serializer.validated_data['following']
     if Follow.objects.filter(user=user, following=following).exists():
         raise ValidationError("Вы уже подписаны на этого пользователя.")
     serializer.save(user=user)
-
 
 
 class PostViewSet(viewsets.ModelViewSet):
