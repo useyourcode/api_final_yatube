@@ -1,5 +1,4 @@
 from django.shortcuts import get_object_or_404
-
 from rest_framework import filters, mixins, viewsets
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.pagination import LimitOffsetPagination
@@ -32,22 +31,16 @@ class FollowViewSet(
         return Follow.objects.filter(user=self.request.user)
 
     def perform_create(self, serializer):
-        user = self.request.user
-        following = serializer.validated_data['following']
-        if Follow.objects.filter(user=user, following=following).exists():
-            raise ValidationError("Вы уже подписаны на этого пользователя.")
-        serializer.save(user=user)
+        serializer.save(user=self.request.user)
 
 
 class PostViewSet(viewsets.ModelViewSet):
     queryset = Post.objects.all()
     serializer_class = PostSerializer
-    permission_classes = [IsAuthorOrReadOnly]
+    permission_classes = [IsAuthenticatedOrReadOnly, IsAuthorOrReadOnly]
     pagination_class = LimitOffsetPagination
 
     def perform_create(self, serializer):
-        if self.request.user.is_anonymous:
-            raise PermissionDenied("Не пройдена аутентификация")
         serializer.save(author=self.request.user)
 
 
@@ -60,7 +53,7 @@ class GroupViewSet(viewsets.ReadOnlyModelViewSet):
 class CommentViewSet(viewsets.ModelViewSet):
     queryset = Comment.objects.all()
     serializer_class = CommentSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
+    permission_classes = [IsAuthenticatedOrReadOnly, IsAuthorOrReadOnly]
 
     def get_queryset(self):
         post = get_object_or_404(Post, pk=self.kwargs.get('post_id'))
@@ -69,8 +62,3 @@ class CommentViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         post = get_object_or_404(Post, pk=self.kwargs.get('post_id'))
         serializer.save(author=self.request.user, post=post)
-
-    def perform_destroy(self, instance):
-        if instance.author != self.request.user:
-            raise PermissionDenied("У вас нет прав на удаление поста")
-        instance.delete()
